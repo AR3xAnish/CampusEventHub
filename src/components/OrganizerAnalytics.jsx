@@ -4,7 +4,7 @@ import {
   PieChart, Pie, Cell,
   AreaChart, Area,
 } from 'recharts';
-import { Users, CalendarDays, CheckCircle, TrendingUp, Award, Activity } from 'lucide-react';
+import { Users, CalendarDays, CheckCircle, TrendingUp, TrendingDown, Award, Activity } from 'lucide-react';
 
 const CATEGORY_COLORS = {
   Technical: '#6366f1',
@@ -114,8 +114,8 @@ const OrganizerAnalytics = ({ stats }) => {
           color="text-emerald-400" gradient="bg-gradient-to-br from-emerald-500 to-green-600"
         />
         <StatCard
-          icon={TrendingUp} label="Check-in Rate" value={`${checkInRate}%`}
-          sub={checkInRate >= 70 ? '🔥 Great turnout!' : checkInRate >= 40 ? 'Moderate attendance' : 'Low turnout'}
+          icon={TrendingDown} label="Drop-off Rate" value={`${100 - checkInRate}%`}
+          sub={100 - checkInRate <= 30 ? '🔥 Great turnout!' : 100 - checkInRate <= 60 ? 'Moderate drop-off' : 'High drop-off'}
           color="text-amber-400" gradient="bg-gradient-to-br from-amber-500 to-orange-600"
         />
         <StatCard

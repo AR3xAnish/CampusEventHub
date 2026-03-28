@@ -13,14 +13,14 @@ router.post('/checkin', protect, organizerOnly, async (req, res) => {
   try {
     const organizerId = req.user.id;
     const now = Date.now();
-    
+
     // Prevent suspicious rapid check-ins (less than 1500ms between checkins by same organizer)
     if (scanHistory.has(organizerId)) {
       if (now - scanHistory.get(organizerId) < 1500) {
         return res.status(429).json({ message: 'Suspicious rapid check-in detected. Please wait before scanning again.' });
       }
     }
-    
+
     // Will update scan time only on successful DB query to prevent blocking from bad requests
     scanHistory.set(organizerId, now);
 
@@ -113,7 +113,7 @@ router.get('/event/:eventId', protect, organizerOnly, async (req, res) => {
   try {
     const event = await Event.findById(req.params.eventId);
     if (!event || event.organizer.toString() !== req.user.id) {
-       return res.status(403).json({ message: 'Not authorized to view participants for this event' });
+      return res.status(403).json({ message: 'Not authorized to view participants for this event' });
     }
     const registrations = await Registration.find({ event: req.params.eventId }).populate('student', 'name email');
     res.json(registrations);
@@ -181,18 +181,23 @@ router.get('/organizer/stats', protect, organizerOnly, async (req, res) => {
         checkinByHour[hour]++;
       }
     });
-    
+
     const peakCheckinTimes = checkinByHour.map((count, hour) => {
       const displayHour = hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`;
       return { time: displayHour, checkins: count, rawHour: hour };
     }).filter(d => d.checkins > 0 || (d.rawHour >= 8 && d.rawHour <= 20)); // Keep active daytime hours by default
+
+    const eventsWithCounts = events.map(event => {
+      const regs = allRegistrations.filter(r => r.event?._id?.toString() === event._id.toString());
+      return { ...event.toObject(), registrationCount: regs.length };
+    });
 
     res.json({
       totalEvents: events.length,
       totalRegistrations,
       totalCheckedIn,
       checkInRate: totalRegistrations > 0 ? Math.round((totalCheckedIn / totalRegistrations) * 100) : 0,
-      events,
+      events: eventsWithCounts,
       perEvent,
       categoryBreakdown,
       statusBreakdown,
