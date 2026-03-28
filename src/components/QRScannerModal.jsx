@@ -106,6 +106,11 @@ const QRScannerModal = ({ event, onClose }) => {
       setResultData(data.registration);
       setScanStatus('success');
     } catch (err) {
+      if (err.response?.status === 429) {
+        setErrorMsg(err.response?.data?.message || 'Scanning too fast! Please pause.');
+        setScanStatus('rapid-abuse');
+        return;
+      }
       const isAlreadyIn = err.response?.data?.alreadyCheckedIn;
       if (isAlreadyIn) {
         setResultData(err.response?.data?.registration);
@@ -134,7 +139,7 @@ const QRScannerModal = ({ event, onClose }) => {
     setTimeout(() => startScanner(), 150);
   };
 
-  const isFinalState = ['success', 'duplicate', 'error'].includes(scanStatus);
+  const isFinalState = ['success', 'duplicate', 'error', 'rapid-abuse'].includes(scanStatus);
   const showViewport = scanStatus === 'scanning' || scanStatus === 'idle';
 
   return (
@@ -233,8 +238,19 @@ const QRScannerModal = ({ event, onClose }) => {
               <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center">
                 <AlertCircle size={40} className="text-red-400" />
               </div>
-              <p className="text-white font-bold">Scan Failed</p>
+              <p className="text-white font-bold text-lg">Scan Failed</p>
               <p className="text-red-400 text-sm">{errorMsg}</p>
+            </div>
+          )}
+
+          {/* Rapid Scan Abuse / Fraud Prevention */}
+          {scanStatus === 'rapid-abuse' && (
+            <div className="aspect-square flex flex-col items-center justify-center gap-3 bg-pink-500/5 rounded-2xl border border-pink-500/20 p-6 text-center">
+              <div className="w-20 h-20 bg-pink-500/10 rounded-full flex items-center justify-center animate-pulse">
+                <AlertCircle size={40} className="text-secondary" />
+              </div>
+              <p className="text-white font-bold text-lg">Action Blocked</p>
+              <p className="text-pink-400 text-sm">{errorMsg}</p>
             </div>
           )}
 

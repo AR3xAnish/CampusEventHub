@@ -5,9 +5,25 @@ import Event from '../models/Event.js';
 
 const router = express.Router();
 
+// Track organizer scan timestamps to prevent rapid check-in abuse
+const scanHistory = new Map();
+
 // POST /checkin — Organizer scans QR and checks in a participant
 router.post('/checkin', protect, organizerOnly, async (req, res) => {
   try {
+    const organizerId = req.user.id;
+    const now = Date.now();
+    
+    // Prevent suspicious rapid check-ins (less than 1500ms between checkins by same organizer)
+    if (scanHistory.has(organizerId)) {
+      if (now - scanHistory.get(organizerId) < 1500) {
+        return res.status(429).json({ message: 'Suspicious rapid check-in detected. Please wait before scanning again.' });
+      }
+    }
+    
+    // Will update scan time only on successful DB query to prevent blocking from bad requests
+    scanHistory.set(organizerId, now);
+
     const { registrationId } = req.body;
     if (!registrationId) {
       return res.status(400).json({ message: 'Registration ID is required' });
@@ -110,14 +126,81 @@ router.get('/organizer/stats', protect, organizerOnly, async (req, res) => {
   try {
     const events = await Event.find({ organizer: req.user.id });
     const eventIds = events.map(e => e._id);
-    const registrationsCount = await Registration.countDocuments({ event: { $in: eventIds } });
+
+    // All registrations for this organizer's events
+    const allRegistrations = await Registration.find({ event: { $in: eventIds } })
+      .populate('event', 'title category date capacity');
+
+    const totalRegistrations = allRegistrations.length;
+    const totalCheckedIn = allRegistrations.filter(r => r.checkedIn).length;
+
+    // Per-event data for bar chart
+    const perEvent = events.map(event => {
+      const regs = allRegistrations.filter(r => r.event?._id?.toString() === event._id.toString());
+      return {
+        name: event.title.length > 18 ? event.title.slice(0, 18) + '…' : event.title,
+        fullName: event.title,
+        registered: regs.length,
+        checkedIn: regs.filter(r => r.checkedIn).length,
+        capacity: event.capacity || 0,
+        category: event.category || 'Other',
+      };
+    });
+
+    // Category breakdown for pie chart
+    const categoryMap = {};
+    events.forEach(e => {
+      const cat = e.category || 'Other';
+      categoryMap[cat] = (categoryMap[cat] || 0) + 1;
+    });
+    const categoryBreakdown = Object.entries(categoryMap).map(([name, value]) => ({ name, value }));
+
+    // Status breakdown  
+    const statusMap = { Upcoming: 0, Ongoing: 0, Completed: 0 };
+    events.forEach(e => { if (statusMap[e.status] !== undefined) statusMap[e.status]++; });
+    const statusBreakdown = Object.entries(statusMap).map(([name, value]) => ({ name, value }));
+
+    // Registrations over time (last 7 days)
+    const now = new Date();
+    const timeline = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() - (6 - i));
+      const label = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      const count = allRegistrations.filter(r => {
+        const rd = new Date(r.createdAt);
+        return rd.toDateString() === d.toDateString();
+      }).length;
+      return { date: label, registrations: count };
+    });
+
+    // Peak Check-in Times (by hour)
+    const checkinByHour = Array(24).fill(0);
+    allRegistrations.forEach(r => {
+      if (r.checkedIn && r.checkedInAt) {
+        const hour = new Date(r.checkedInAt).getHours();
+        checkinByHour[hour]++;
+      }
+    });
+    
+    const peakCheckinTimes = checkinByHour.map((count, hour) => {
+      const displayHour = hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`;
+      return { time: displayHour, checkins: count, rawHour: hour };
+    }).filter(d => d.checkins > 0 || (d.rawHour >= 8 && d.rawHour <= 20)); // Keep active daytime hours by default
 
     res.json({
       totalEvents: events.length,
-      totalRegistrations: registrationsCount,
-      events: events
+      totalRegistrations,
+      totalCheckedIn,
+      checkInRate: totalRegistrations > 0 ? Math.round((totalCheckedIn / totalRegistrations) * 100) : 0,
+      events,
+      perEvent,
+      categoryBreakdown,
+      statusBreakdown,
+      timeline,
+      peakCheckinTimes,
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: 'Server error' });
   }
 });

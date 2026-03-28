@@ -5,7 +5,8 @@ import EventCard from '../../components/EventCard';
 import Navbar from '../../components/Navbar';
 import QRScannerModal from '../../components/QRScannerModal';
 import EventParticipantsModal from '../../components/EventParticipantsModal';
-import { PlusCircle, Trash2, Users, Calendar, Sparkles, Activity, Camera } from 'lucide-react';
+import OrganizerAnalytics from '../../components/OrganizerAnalytics';
+import { PlusCircle, Trash2, Users, Calendar, Sparkles, Activity, Camera, BarChart2 } from 'lucide-react';
 
 const Dashboard = () => {
   const { user } = useContext(AuthContext);
@@ -14,7 +15,8 @@ const Dashboard = () => {
   const [showForm, setShowForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [scanEvent, setScanEvent] = useState(null);
-  const [viewEvent, setViewEvent] = useState(null); // participants view
+  const [viewEvent, setViewEvent] = useState(null);
+  const [showAnalytics, setShowAnalytics] = useState(true);
 
   useEffect(() => {
     fetchStats();
@@ -58,6 +60,16 @@ const Dashboard = () => {
     }
   };
 
+  const handleStatusChange = async (eventId, newStatus) => {
+    try {
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
+      await axios.put(`/api/events/${eventId}`, { status: newStatus }, config);
+      fetchStats();
+    } catch (err) {
+      console.error('Error updating status:', err);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-dark bg-grid-pattern relative">
       {/* Subtle Background Glow */}
@@ -73,18 +85,36 @@ const Dashboard = () => {
             <h1 className="text-4xl md:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-secondary to-pink-500 mb-2 tracking-tight">Organizer HQ</h1>
             <p className="text-lg text-slate-400">Manage your events and track engagements</p>
           </div>
-          <button 
-            onClick={() => setShowForm(!showForm)} 
-            className={`mt-6 md:mt-0 flex items-center py-3 px-6 rounded-xl font-bold transition-all duration-300 shadow-lg active:scale-95 ${
-              showForm 
-                ? 'bg-white/10 text-white hover:bg-white/20 border border-white/20' 
-                : 'bg-gradient-to-r from-primary to-indigo-600 text-white hover:shadow-indigo-500/30'
-            }`}
-          >
-            {showForm ? 'Cancel Creation' : <><PlusCircle size={20} className="mr-2" /> Launch New Event</>}
-          </button>
+          <div className="flex items-center gap-3 mt-6 md:mt-0">
+            <button
+              onClick={() => setShowAnalytics(v => !v)}
+              className={`flex items-center gap-2 py-2.5 px-4 rounded-xl font-semibold text-sm transition-all border ${
+                showAnalytics
+                  ? 'bg-primary/20 text-indigo-300 border-primary/40'
+                  : 'bg-white/5 text-slate-400 border-white/10 hover:border-white/20'
+              }`}
+            >
+              <BarChart2 size={16} /> Analytics
+            </button>
+            <button 
+              onClick={() => setShowForm(!showForm)} 
+              className={`flex items-center py-3 px-6 rounded-xl font-bold transition-all duration-300 shadow-lg active:scale-95 ${
+                showForm 
+                  ? 'bg-white/10 text-white hover:bg-white/20 border border-white/20' 
+                  : 'bg-gradient-to-r from-primary to-indigo-600 text-white hover:shadow-indigo-500/30'
+              }`}
+            >
+              {showForm ? 'Cancel Creation' : <><PlusCircle size={20} className="mr-2" /> Launch New Event</>}
+            </button>
+          </div>
         </div>
-        
+
+        {/* Analytics Section */}
+        {showAnalytics && stats.events.length > 0 && (
+          <div className="mb-12">
+            <OrganizerAnalytics stats={stats} />
+          </div>
+        )}
         {/* Stats Section */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
           <div className="glass-panel p-8 relative overflow-hidden group">
@@ -230,6 +260,7 @@ const Dashboard = () => {
                     <EventCard 
                       event={event} 
                       onAction={handleDeleteEvent}
+                      onStatusChange={handleStatusChange}
                       actionLabel={
                         <span
                           className="flex items-center justify-center"

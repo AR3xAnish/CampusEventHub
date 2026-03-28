@@ -12,6 +12,8 @@ const EventParticipantsModal = ({ event, onClose, onOpenScanner }) => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all'); // all | checkedin | pending
+  const isCompleted = event.status === 'Completed';
+  const checkedInLabel = isCompleted ? 'Attended' : 'Checked In';
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -107,7 +109,7 @@ const EventParticipantsModal = ({ event, onClose, onOpenScanner }) => {
               </div>
               <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-3 text-center">
                 <p className="text-2xl font-bold text-green-400">{checkedIn.length}</p>
-                <p className="text-xs text-slate-500 mt-0.5">Checked In</p>
+                <p className="text-xs text-slate-500 mt-0.5">{checkedInLabel}</p>
               </div>
               <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 text-center">
                 <p className="text-2xl font-bold text-amber-400">{pending.length}</p>
@@ -129,7 +131,7 @@ const EventParticipantsModal = ({ event, onClose, onOpenScanner }) => {
             />
           </div>
           <div className="flex gap-1 bg-white/[0.03] border border-white/10 rounded-xl p-1">
-            {[['all', 'All'], ['checkedin', '✓ In'], ['pending', '• Pending']].map(([val, label]) => (
+            {[['all', 'All'], ['checkedin', `✓ ${isCompleted ? 'Attended' : 'In'}`], ['pending', '• Pending']].map(([val, label]) => (
               <button
                 key={val}
                 onClick={() => setFilter(val)}
@@ -215,7 +217,7 @@ const EventParticipantsModal = ({ event, onClose, onOpenScanner }) => {
         {!loading && registrations.length > 0 && (
           <div className="flex-shrink-0 px-6 py-4 border-t border-white/5 flex items-center justify-between">
             <p className="text-xs text-slate-500">
-              {checkedIn.length} of {registrations.length} participants checked in
+              {checkedIn.length} of {registrations.length} participants {isCompleted ? 'attended' : 'checked in'}
               {event.capacity ? ` · Capacity: ${event.capacity}` : ''}
             </p>
             <button

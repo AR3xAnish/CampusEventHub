@@ -1,7 +1,7 @@
 import React from 'react';
 import { Calendar, MapPin, Users } from 'lucide-react';
 
-const EventCard = ({ event, onAction, actionLabel, actionColor, disabled }) => {
+const EventCard = ({ event, onAction, actionLabel, actionColor, disabled, onStatusChange }) => {
   return (
     <div className="group relative bg-white/[0.02] hover:bg-white/[0.04] border border-white/10 hover:border-white/20 rounded-2xl p-6 flex flex-col h-full transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:-translate-y-1 overflow-hidden">
       {/* Top subtle gradient line */}
@@ -13,13 +13,31 @@ const EventCard = ({ event, onAction, actionLabel, actionColor, disabled }) => {
 
       <div className="flex justify-between items-start mb-3 mt-2 gap-3">
         <h3 className="text-xl font-bold text-white leading-tight group-hover:text-primary transition-colors duration-300 break-words line-clamp-2">{event.title}</h3>
-        {/* <span className={`px-3 py-1 text-xs font-semibold rounded-full whitespace-nowrap border ${
-          event.status === 'Upcoming' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
-          event.status === 'Ongoing' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
-          'bg-slate-500/10 text-slate-400 border-slate-500/20'
-        }`}>
-          {event.status}
-        </span> */}
+        {onStatusChange ? (
+          <select 
+            value={event.status || 'Upcoming'} 
+            onChange={(e) => onStatusChange(event._id, e.target.value)}
+            disabled={disabled}
+            onClick={e => e.stopPropagation()}
+            className={`px-3 py-1 text-xs font-semibold rounded-full border cursor-pointer focus:outline-none appearance-none ${
+              event.status === 'Upcoming' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+              event.status === 'Ongoing' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+              'bg-slate-500/10 text-slate-400 border-slate-500/20'
+            }`}
+          >
+            <option value="Upcoming" className="bg-[#0d0f1a] text-blue-400">Upcoming</option>
+            <option value="Ongoing" className="bg-[#0d0f1a] text-green-400">Ongoing</option>
+            <option value="Completed" className="bg-[#0d0f1a] text-slate-400">Completed</option>
+          </select>
+        ) : (
+          <span className={`px-3 py-1 text-xs font-semibold rounded-full whitespace-nowrap border ${
+            event.status === 'Upcoming' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+            event.status === 'Ongoing' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+            'bg-slate-500/10 text-slate-400 border-slate-500/20'
+          }`}>
+            {event.status || 'Upcoming'}
+          </span>
+        )}
       </div>
 
       {/* Team badge */}

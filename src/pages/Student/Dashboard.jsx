@@ -5,7 +5,7 @@ import EventCard from '../../components/EventCard';
 import Navbar from '../../components/Navbar';
 import RegisterModal from '../../components/RegisterModal';
 import TicketModal from '../../components/TicketModal';
-import { CalendarDays, CheckCircle, Sparkles, Compass, Search, X, SlidersHorizontal } from 'lucide-react';
+import { CalendarDays, CheckCircle, Sparkles, Compass, Search, X, SlidersHorizontal, TrendingUp } from 'lucide-react';
 
 const StudentDashboard = () => {
   const { user } = useContext(AuthContext);
@@ -78,6 +78,21 @@ const StudentDashboard = () => {
   const hasActiveFilters = searchQuery || filterCategory !== 'All' || filterStatus !== 'All' || sortBy !== 'date-asc';
   const clearFilters = () => { setSearchQuery(''); setFilterCategory('All'); setFilterStatus('All'); setSortBy('date-asc'); };
 
+  // Calculate top categories for the spotlight based on total registrationCount
+  const topCategories = useMemo(() => {
+    const cats = {};
+    events.forEach(e => {
+      if (e.status !== 'Completed') {
+        const c = e.category || 'Other';
+        cats[c] = (cats[c] || 0) + (e.registrationCount || 0);
+      }
+    });
+    return Object.entries(cats)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3) 
+      .map(([name, count]) => ({ name, count }));
+  }, [events]);
+
   const handleModalClose = () => setSelectedEvent(null);
   const handleModalSuccess = () => { fetchMyRegistrations(); };
 
@@ -140,8 +155,34 @@ const StudentDashboard = () => {
         <div className="animate-fade-in transition-all duration-500">
           {activeTab === 'upcoming' ? (
             <div>
+              {/* Trending Categories Spotlight */}
+              {topCategories.length > 0 && !hasActiveFilters && (
+                <div className="mb-10 p-6 rounded-2xl bg-white/[0.02] border border-white/5">
+                  <div className="flex items-center gap-2 mb-4">
+                    <TrendingUp size={18} className="text-secondary" />
+                    <h3 className="text-lg font-bold text-white">Trending Event Categories</h3>
+                  </div>
+                  <div className="flex flex-wrap gap-4">
+                    {topCategories.map((cat, i) => (
+                      <div 
+                        key={cat.name}
+                        onClick={() => { setFilterCategory(cat.name); document.getElementById('events-grid')?.scrollIntoView({ behavior: 'smooth' }); }}
+                        className="flex-1 min-w-[140px] cursor-pointer group glass-panel p-4 hover:-translate-y-1 hover:border-secondary/30 transition-all border border-white/10"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className={`text-2xl font-black opacity-20 group-hover:opacity-40 transition-opacity ${i===0 ? 'text-yellow-400' : i===1 ? 'text-slate-300' : 'text-amber-600'}`}>#{i+1}</span>
+                          <Sparkles size={16} className={i===0 ? 'text-yellow-400' : 'text-slate-500'} />
+                        </div>
+                        <p className="font-bold text-white group-hover:text-secondary mb-0.5">{cat.name}</p>
+                        <p className="text-xs text-slate-400">{cat.count} students joined</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Header + search bar */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+              <div id="events-grid" className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div className="flex items-center gap-3">
                   <div className="w-2 h-8 bg-primary rounded-full"></div>
                   <h2 className="text-2xl font-bold text-white tracking-wide">Available Events</h2>
