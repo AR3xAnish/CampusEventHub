@@ -21,7 +21,7 @@ router.get('/', protect, async (req, res) => {
 
 router.post('/', protect, organizerOnly, async (req, res) => {
   try {
-    const { title, description, date, venue, capacity, isTeamEvent, maxTeamSize } = req.body;
+    const { title, description, date, venue, capacity, isTeamEvent, maxTeamSize, category } = req.body;
     const event = new Event({
       title,
       description,
@@ -30,6 +30,7 @@ router.post('/', protect, organizerOnly, async (req, res) => {
       capacity: Number(capacity) || 0,
       isTeamEvent: isTeamEvent ?? false,
       maxTeamSize: maxTeamSize || 4,
+      category: category || 'Other',
       organizer: req.user.id
     });
     const createdEvent = await event.save();

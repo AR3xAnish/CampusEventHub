@@ -9,7 +9,12 @@ const eventSchema = new mongoose.Schema({
   status: { type: String, enum: ['Upcoming', 'Ongoing', 'Completed'], default: 'Upcoming' },
   organizer: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   isTeamEvent: { type: Boolean, default: false },
-  maxTeamSize: { type: Number, default: 4 }
+  maxTeamSize: { type: Number, default: 4 },
+  category: {
+    type: String,
+    enum: ['Technical', 'Cultural', 'Workshop', 'Seminar', 'Sports', 'Other'],
+    default: 'Other'
+  }
 }, { timestamps: true });
 
 export default mongoose.model('Event', eventSchema);

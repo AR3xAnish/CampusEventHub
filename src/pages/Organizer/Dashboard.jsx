@@ -4,15 +4,17 @@ import { AuthContext } from '../../context/AuthContext';
 import EventCard from '../../components/EventCard';
 import Navbar from '../../components/Navbar';
 import QRScannerModal from '../../components/QRScannerModal';
+import EventParticipantsModal from '../../components/EventParticipantsModal';
 import { PlusCircle, Trash2, Users, Calendar, Sparkles, Activity, Camera } from 'lucide-react';
 
 const Dashboard = () => {
   const { user } = useContext(AuthContext);
   const [stats, setStats] = useState({ totalEvents: 0, totalRegistrations: 0, events: [] });
-  const [newEvent, setNewEvent] = useState({ title: '', description: '', date: '', venue: '', capacity: '', isTeamEvent: false, maxTeamSize: 4 });
+  const [newEvent, setNewEvent] = useState({ title: '', description: '', date: '', venue: '', capacity: '', isTeamEvent: false, maxTeamSize: 4, category: 'Other' });
   const [showForm, setShowForm] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [scanEvent, setScanEvent] = useState(null);
+  const [viewEvent, setViewEvent] = useState(null); // participants view
 
   useEffect(() => {
     fetchStats();
@@ -34,7 +36,7 @@ const Dashboard = () => {
     try {
       const config = { headers: { Authorization: `Bearer ${user.token}` } };
       await axios.post('/api/events', newEvent, config);
-      setNewEvent({ title: '', description: '', date: '', venue: '', capacity: '', isTeamEvent: false, maxTeamSize: 4 });
+      setNewEvent({ title: '', description: '', date: '', venue: '', capacity: '', isTeamEvent: false, maxTeamSize: 4, category: 'Other' });
       setShowForm(false);
       fetchStats();
     } catch (err) {
@@ -148,6 +150,14 @@ const Dashboard = () => {
                 <label className="text-slate-300 text-sm font-medium ml-1">Max Capacity <span className="text-slate-500 font-normal">(Leave empty for unlimited)</span></label>
                 <input type="number" value={newEvent.capacity} onChange={e => setNewEvent({...newEvent, capacity: e.target.value})} className="glass-input w-full" placeholder="e.g. 500" min="0" />
               </div>
+              <div className="space-y-1">
+                <label className="text-slate-300 text-sm font-medium ml-1">Category</label>
+                <select value={newEvent.category} onChange={e => setNewEvent({...newEvent, category: e.target.value})} className="glass-input w-full">
+                  {['Technical','Cultural','Workshop','Seminar','Sports','Other'].map(c => (
+                    <option key={c} value={c} className="bg-[#0d0f1a]">{c}</option>
+                  ))}
+                </select>
+              </div>
 
               {/* Team Event Toggle */}
               <div className="md:col-span-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 bg-white/[0.02] rounded-xl border border-white/10">
@@ -215,17 +225,25 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {stats.events.map(event => (
                 <div key={event._id} className="relative">
-                  <EventCard 
-                    event={event} 
-                    onAction={handleDeleteEvent} 
-                    actionLabel={
-                      <span className="flex items-center justify-center"><Trash2 size={16} className="mr-2"/> Delete Event</span>
-                    } 
-                    actionColor="red" 
-                  />
+                  {/* Clicking the card body opens participants view */}
+                  <div onClick={() => setViewEvent(event)} className="cursor-pointer">
+                    <EventCard 
+                      event={event} 
+                      onAction={handleDeleteEvent}
+                      actionLabel={
+                        <span
+                          className="flex items-center justify-center"
+                          onClick={e => e.stopPropagation()}
+                        >
+                          <Trash2 size={16} className="mr-2"/> Delete Event
+                        </span>
+                      } 
+                      actionColor="red" 
+                    />
+                  </div>
                   {/* Check-in Camera Button */}
                   <button
-                    onClick={() => setScanEvent(event)}
+                    onClick={(e) => { e.stopPropagation(); setScanEvent(event); }}
                     title="Scan QR to check in participants"
                     className="absolute top-4 right-4 w-9 h-9 bg-secondary/20 hover:bg-secondary/40 border border-secondary/30 rounded-xl flex items-center justify-center text-secondary hover:scale-110 transition-all duration-200 z-10"
                   >
@@ -243,6 +261,15 @@ const Dashboard = () => {
         <QRScannerModal
           event={scanEvent}
           onClose={() => setScanEvent(null)}
+        />
+      )}
+
+      {/* Participants View Modal */}
+      {viewEvent && (
+        <EventParticipantsModal
+          event={viewEvent}
+          onClose={() => setViewEvent(null)}
+          onOpenScanner={(ev) => setScanEvent(ev)}
         />
       )}
     </div>

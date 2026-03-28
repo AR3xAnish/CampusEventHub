@@ -1,11 +1,11 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState, useContext, useMemo } from 'react';
 import axios from 'axios';
 import { AuthContext } from '../../context/AuthContext';
 import EventCard from '../../components/EventCard';
 import Navbar from '../../components/Navbar';
 import RegisterModal from '../../components/RegisterModal';
 import TicketModal from '../../components/TicketModal';
-import { CalendarDays, CheckCircle, Sparkles, Compass } from 'lucide-react';
+import { CalendarDays, CheckCircle, Sparkles, Compass, Search, X, SlidersHorizontal } from 'lucide-react';
 
 const StudentDashboard = () => {
   const { user } = useContext(AuthContext);
@@ -14,6 +14,11 @@ const StudentDashboard = () => {
   const [activeTab, setActiveTab] = useState('upcoming');
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [selectedTicket, setSelectedTicket] = useState(null);
+  // Search & filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterCategory, setFilterCategory] = useState('All');
+  const [filterStatus, setFilterStatus] = useState('All');
+  const [sortBy, setSortBy] = useState('date-asc');
 
   useEffect(() => {
     fetchEvents();
@@ -46,7 +51,32 @@ const StudentDashboard = () => {
   };
 
   const registeredEventsList = events.filter(e => myRegistrations.some(r => r.event?._id === e._id));
-  const availableEventsList = events.filter(e => !myRegistrations.some(r => r.event?._id === e._id) && e.status !== 'Completed');
+  const baseAvailable = events.filter(e => !myRegistrations.some(r => r.event?._id === e._id) && e.status !== 'Completed');
+
+  // Filtered + sorted available list
+  const availableEventsList = useMemo(() => {
+    let list = [...baseAvailable];
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter(e =>
+        e.title?.toLowerCase().includes(q) ||
+        e.description?.toLowerCase().includes(q) ||
+        e.venue?.toLowerCase().includes(q)
+      );
+    }
+    if (filterCategory !== 'All') list = list.filter(e => e.category === filterCategory);
+    if (filterStatus !== 'All') list = list.filter(e => e.status === filterStatus);
+    list.sort((a, b) => {
+      if (sortBy === 'date-asc') return new Date(a.date) - new Date(b.date);
+      if (sortBy === 'date-desc') return new Date(b.date) - new Date(a.date);
+      if (sortBy === 'name') return a.title?.localeCompare(b.title);
+      return 0;
+    });
+    return list;
+  }, [baseAvailable, searchQuery, filterCategory, filterStatus, sortBy]);
+
+  const hasActiveFilters = searchQuery || filterCategory !== 'All' || filterStatus !== 'All' || sortBy !== 'date-asc';
+  const clearFilters = () => { setSearchQuery(''); setFilterCategory('All'); setFilterStatus('All'); setSortBy('date-asc'); };
 
   const handleModalClose = () => setSelectedEvent(null);
   const handleModalSuccess = () => { fetchMyRegistrations(); };
@@ -110,9 +140,76 @@ const StudentDashboard = () => {
         <div className="animate-fade-in transition-all duration-500">
           {activeTab === 'upcoming' ? (
             <div>
-              <div className="flex items-center mb-6">
-                <div className="w-2 h-8 bg-primary rounded-full mr-3"></div>
-                <h2 className="text-2xl font-bold text-white tracking-wide">Available Events</h2>
+              {/* Header + search bar */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-2 h-8 bg-primary rounded-full"></div>
+                  <h2 className="text-2xl font-bold text-white tracking-wide">Available Events</h2>
+                </div>
+                {/* Search input */}
+                <div className="relative flex-1 max-w-sm">
+                  <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                  <input
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    placeholder="Search events by name, venue..."
+                    className="glass-input w-full pl-9 py-2.5 text-sm"
+                  />
+                  {searchQuery && (
+                    <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white">
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Filter pills row */}
+              <div className="flex flex-wrap gap-2 mb-6 items-center">
+                <SlidersHorizontal size={15} className="text-slate-500 flex-shrink-0" />
+
+                {/* Category pills */}
+                {['All','Technical','Cultural','Workshop','Seminar','Sports','Other'].map(cat => (
+                  <button key={cat} onClick={() => setFilterCategory(cat)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+                      filterCategory === cat
+                        ? 'bg-primary/30 text-indigo-300 border-primary/50'
+                        : 'bg-white/5 text-slate-500 border-white/10 hover:border-white/20 hover:text-slate-300'
+                    }`}>
+                    {cat}
+                  </button>
+                ))}
+
+                <div className="w-px h-4 bg-white/10 mx-1" />
+
+                {/* Status pills */}
+                {['All','Upcoming','Ongoing'].map(st => (
+                  <button key={st} onClick={() => setFilterStatus(st)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
+                      filterStatus === st
+                        ? st === 'Ongoing' ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                          : 'bg-primary/30 text-indigo-300 border-primary/50'
+                        : 'bg-white/5 text-slate-500 border-white/10 hover:border-white/20 hover:text-slate-300'
+                    }`}>
+                    {st}
+                  </button>
+                ))}
+
+                <div className="w-px h-4 bg-white/10 mx-1" />
+
+                {/* Sort */}
+                <select value={sortBy} onChange={e => setSortBy(e.target.value)}
+                  className="text-xs bg-white/5 border border-white/10 text-slate-400 rounded-full px-3 py-1.5 focus:outline-none hover:border-white/20">
+                  <option value="date-asc" className="bg-[#0d0f1a]">↑ Date (Soonest)</option>
+                  <option value="date-desc" className="bg-[#0d0f1a]">↓ Date (Latest)</option>
+                  <option value="name" className="bg-[#0d0f1a]">A–Z Name</option>
+                </select>
+
+                {/* Clear filters */}
+                {hasActiveFilters && (
+                  <button onClick={clearFilters} className="ml-auto text-xs text-slate-500 hover:text-white flex items-center gap-1 transition-colors">
+                    <X size={12} /> Clear
+                  </button>
+                )}
               </div>
               
               {availableEventsList.length === 0 ? (
@@ -120,8 +217,20 @@ const StudentDashboard = () => {
                   <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6">
                     <CalendarDays size={40} className="text-slate-500" />
                   </div>
-                  <p className="text-xl font-medium text-white mb-2">You're all caught up!</p>
-                  <p className="text-slate-400">There are no new events posted right now. Check back later.</p>
+                  {hasActiveFilters ? (
+                    <>
+                      <p className="text-xl font-medium text-white mb-2">No events match your filters</p>
+                      <p className="text-slate-400 mb-4">Try adjusting your search or filters</p>
+                      <button onClick={clearFilters} className="px-4 py-2 rounded-xl bg-primary/20 text-indigo-300 border border-primary/30 text-sm hover:bg-primary/30 transition-all">
+                        Clear All Filters
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xl font-medium text-white mb-2">You're all caught up!</p>
+                      <p className="text-slate-400">There are no new events posted right now. Check back later.</p>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
